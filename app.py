@@ -57,7 +57,10 @@ genai.configure(api_key=GOOGLE_API_KEY)
 print("Initializing models...")
 generation_config = { "temperature": 0.7, "top_p": 1, "top_k": 1, "max_output_tokens": 2048, }
 safety_settings = [
-    # (safety settings remain the same)
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
 ]
 generative_model = genai.GenerativeModel(
     model_name="models/gemini-1.5-flash-latest",
@@ -68,7 +71,11 @@ print("Generative AI model loaded. Server is ready.")
 # =================================================================
 
 intent_keywords = {
-    # (keywords remain the same)
+    "malaria_prevention": ["malaria", "mosquito", "mosquitoes", "insect", "bite", "bites", "prevent"],
+    "dengue_symptoms": ["dengue", "joint", "pain", "eyes", "headache"],
+    "covid_symptoms": ["covid", "cough", "fever", "taste", "smell", "tiredness", "sars"],
+    "common_cold_treatment": ["cold", "runny", "nose", "sneeze", "sore", "throat"],
+    "newborn_vaccination": ["newborn", "baby", "babies", "vaccine", "vaccination", "schedule", "shot", "shots"]
 }
 
 chat_history = []
@@ -96,7 +103,11 @@ def get_intent_from_keywords(user_message):
 
 def get_generative_response(user_message):
     try:
-        prompt = f"""You are a helpful and compassionate AI Health Assistant from India...""" # (prompt remains the same)
+        prompt = f"""You are a helpful and compassionate AI Health Assistant from India. Your goal is to provide clear, general health information based on trusted sources like the WHO. You must never give medical advice or a diagnosis. If a user seems to be in distress or asks for a diagnosis, you must gently guide them to consult a real doctor.
+        
+        The user's question is: "{user_message}"
+        
+        Your answer (in a friendly, conversational tone):"""
         response = generative_model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
