@@ -1,11 +1,15 @@
-# app.py (THE ABSOLUTE FINAL DEPLOYMENT VERSION)
+# app.py (FINAL VERSION with Background Model Loading)
 
 import sqlite3
 from flask import Flask, render_template, request
 import os
 import google.generativeai as genai
+import threading # <-- NEW IMPORT
 
-# This function must be defined before it is called
+# --- Initialize the Flask App FIRST ---
+app = Flask(__name__)
+
+# --- DATABASE INITIALIZATION FUNCTION ---
 def init_db():
     """Initializes the database and creates the table if it doesn't exist."""
     conn = sqlite3.connect('database.db')
@@ -18,7 +22,6 @@ def init_db():
             answer TEXT NOT NULL
         )
     ''')
-    
     cursor.execute("SELECT COUNT(*) FROM faqs")
     count = cursor.fetchone()[0]
     if count == 0:
@@ -34,12 +37,8 @@ def init_db():
         print("Database populated successfully.")
     else:
         print("Database already contains data.")
-
     conn.commit()
     conn.close()
-
-# --- Initialize the Flask App ---
-app = Flask(__name__)
 
 # --- Call the function to set up the database BEFORE the app starts ---
 with app.app_context():
@@ -50,22 +49,36 @@ GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # =================================================================
-# LOAD MODELS
+# NEW: BACKGROUND MODEL LOADING
 # =================================================================
-print("Initializing models...")
-generation_config = { "temperature": 0.7, "top_p": 1, "top_k": 1, "max_output_tokens": 2048, }
-safety_settings = [
-    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
-]
-generative_model = genai.GenerativeModel(
-    model_name="models/gemini-1.5-flash-latest",
-    generation_config=generation_config,
-    safety_settings=safety_settings
-)
-print("Generative AI model loaded. Server is ready.")
+# We start with empty models and a flag to track loading status
+generative_model = None
+models_loaded = False
+
+def load_models_background():
+    """This function will run in a separate thread to load models without blocking."""
+    global generative_model, models_loaded
+    print("Background thread started: Initializing models...")
+    
+    generation_config = { "temperature": 0.7, "top_p": 1, "top_k": 1, "max_output_tokens": 2048, }
+    safety_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+    ]
+    
+    generative_model = genai.GenerativeModel(
+        model_name="models/gemini-1.5-flash-latest",
+        generation_config=generation_config,
+        safety_settings=safety_settings
+    )
+    models_loaded = True
+    print("Generative AI model loaded successfully in background. Server is fully ready.")
+
+# Start the background thread to load the models
+model_loader_thread = threading.Thread(target=load_models_background)
+model_loader_thread.start()
 # =================================================================
 
 intent_keywords = {
@@ -98,6 +111,10 @@ def get_intent_from_keywords(user_message):
     return best_intent
 
 def get_generative_response(user_message):
+    # --- NEW CHECK: Wait for models to be loaded ---
+    if not models_loaded or not generative_model:
+        return "The AI is still warming up. Please try again in 30 seconds."
+    # --- END NEW CHECK ---
     try:
         prompt = f"""You are a helpful and compassionate AI Health Assistant from India. Your goal is to provide clear, general health information based on trusted sources like the WHO. You must never give medical advice or a diagnosis. If a user seems to be in distress or asks for a diagnosis, you must gently guide them to consult a real doctor.
         
@@ -126,7 +143,6 @@ def chat():
         chat_history.append({"sender": "Bot", "message": bot_response})
     return render_template("index.html", chat_history=chat_history)
 
-# --- HEALTH CHECK ROUTE FOR RENDER ---
 @app.route('/health')
 def health_check():
     """A simple route that Render can check to see if the app is alive."""
