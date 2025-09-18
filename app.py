@@ -1,13 +1,13 @@
-# app.py (Final Deployed Version v3)
+# app.py (THE ABSOLUTE FINAL DEPLOYMENT VERSION)
 
 import sqlite3
 from flask import Flask, render_template, request
 import os
 import google.generativeai as genai
 
-# --- DATABASE INITIALIZATION FUNCTION ---
+# This function must be defined before it is called
 def init_db():
-    # ... (This entire function is the same as before) ...
+    """Initializes the database and creates the table if it doesn't exist."""
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     cursor.execute('''
@@ -18,6 +18,7 @@ def init_db():
             answer TEXT NOT NULL
         )
     ''')
+    
     cursor.execute("SELECT COUNT(*) FROM faqs")
     count = cursor.fetchone()[0]
     if count == 0:
@@ -33,6 +34,7 @@ def init_db():
         print("Database populated successfully.")
     else:
         print("Database already contains data.")
+
     conn.commit()
     conn.close()
 
@@ -42,13 +44,10 @@ app = Flask(__name__)
 # --- Call the function to set up the database BEFORE the app starts ---
 with app.app_context():
     init_db()
-# --- END DATABASE INITIALIZATION ---
-
 
 # --- CONFIGURATION ---
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY") 
 genai.configure(api_key=GOOGLE_API_KEY)
-# --- END CONFIGURATION ---
 
 # =================================================================
 # LOAD MODELS
@@ -70,7 +69,11 @@ print("Generative AI model loaded. Server is ready.")
 # =================================================================
 
 intent_keywords = {
-    # (keywords remain the same)
+    "malaria_prevention": ["malaria", "mosquito", "mosquitoes", "insect", "bite", "bites", "prevent"],
+    "dengue_symptoms": ["dengue", "joint", "pain", "eyes", "headache"],
+    "covid_symptoms": ["covid", "cough", "fever", "taste", "smell", "tiredness", "sars"],
+    "common_cold_treatment": ["cold", "runny", "nose", "sneeze", "sore", "throat"],
+    "newborn_vaccination": ["newborn", "baby", "babies", "vaccine", "vaccination", "schedule", "shot", "shots"]
 }
 
 chat_history = []
@@ -79,8 +82,6 @@ def get_db_connection():
     conn = sqlite3.connect('database.db')
     conn.row_factory = sqlite3.Row
     return conn
-
-# ... (The rest of your code, get_intent_from_keywords, get_generative_response, chat(), remains exactly the same) ...
 
 def get_intent_from_keywords(user_message):
     user_message = user_message.lower()
@@ -98,7 +99,11 @@ def get_intent_from_keywords(user_message):
 
 def get_generative_response(user_message):
     try:
-        prompt = f"""You are a helpful and compassionate AI Health Assistant from India...""" # (prompt remains the same)
+        prompt = f"""You are a helpful and compassionate AI Health Assistant from India. Your goal is to provide clear, general health information based on trusted sources like the WHO. You must never give medical advice or a diagnosis. If a user seems to be in distress or asks for a diagnosis, you must gently guide them to consult a real doctor.
+        
+        The user's question is: "{user_message}"
+        
+        Your answer (in a friendly, conversational tone):"""
         response = generative_model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:
@@ -107,7 +112,6 @@ def get_generative_response(user_message):
 
 @app.route("/", methods=['GET', 'POST'])
 def chat():
-    # This entire function remains the same
     if request.method == 'POST':
         user_message = request.form['message']
         chat_history.append({"sender": "You", "message": user_message})
@@ -122,6 +126,8 @@ def chat():
         chat_history.append({"sender": "Bot", "message": bot_response})
     return render_template("index.html", chat_history=chat_history)
 
-# This part is now only for running the app on your LOCAL computer
-if __name__ == '__main__':
-    app.run(debug=True)
+# --- HEALTH CHECK ROUTE FOR RENDER ---
+@app.route('/health')
+def health_check():
+    """A simple route that Render can check to see if the app is alive."""
+    return "OK", 200
