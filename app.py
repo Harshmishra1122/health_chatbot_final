@@ -9,12 +9,12 @@ from datetime import timedelta
 app = Flask(__name__)
 
 # --- SECRET KEY FOR SESSIONS ---
-GOOGLE_API_KEY = "AIzaSyCIRszDPqKAAT1bNO6RZhNcMDcynnS2BIw" 
+app.secret_key = 'your_very_secret_key_here'   # <-- REQUIRED for private sessions
 app.permanent_session_lifetime = timedelta(hours=1)  # Store history for 1 hour
 # --- END NEW PART ---
 
 # --- CONFIGURATION ---
-GOOGLE_API_KEY = "PASTE_YOUR_API_KEY_HERE"   # Replace with your real key
+GOOGLE_API_KEY = "AIzaSyCIRszDPqKAAT1bNO6RZhNcMDcynnS2BIw"  # <-- keep only your real key
 genai.configure(api_key=GOOGLE_API_KEY)
 # --- END CONFIGURATION ---
 
@@ -70,7 +70,7 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-# --- SIH FINAL PROMPT ---
+# --- SIH FINAL PROMPT (unchanged) ---
 def get_generative_response(user_message):
     try:
         prompt = f"""You are "Arogya Sathi," an AI Health Assistant for the Smart India Hackathon.
