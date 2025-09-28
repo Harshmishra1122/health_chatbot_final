@@ -14,6 +14,7 @@ app.secret_key = 'arogya_sathi_sih_2025_secret_key'
 app.permanent_session_lifetime = timedelta(hours=1)
 
 # --- CONFIGURATION FOR OPENROUTER ---
+# The new API key has been pasted directly here.
 OPENROUTER_API_KEY = "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"
 
 # =================================================================
@@ -33,6 +34,7 @@ def init_db():
     conn.commit()
     conn.close()
 
+# Corrected this line
 with app.app_context():
     init_db()
 
@@ -69,12 +71,13 @@ and regional outbreak information.
         headers = {
             "Authorization": f"Bearer {OPENROUTER_API_KEY}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "http://localhost:5000", # Can be your actual site later
+            # This URL is for the live Render deployment
+            "HTTP-Referer": "https://health-chatbot-project-33ia.onrender.com", 
             "X-Title": "Arogya Sathi"
         }
 
         data = {
-            # UPDATED: Using the correct Google Gemini Flash model name for OpenRouter
+            # Using the Google Gemini Flash model as requested
             "model": "google/gemini-2.0-flash-exp:free",
             "messages": [
                 {"role": "system", "content": system_prompt},
