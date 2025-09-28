@@ -1,10 +1,9 @@
-# app.py (Final Version — Corrected for OpenRouter API)
+# app.py (Final Version — Switched back to Google Gemini API)
 
 import sqlite3
 from flask import Flask, render_template, request, session, redirect, url_for
 import os
-import requests # Using requests to send custom headers
-import json     # To format the data for the request
+import google.generativeai as genai
 from datetime import timedelta
 
 app = Flask(__name__)
@@ -13,9 +12,9 @@ app = Flask(__name__)
 app.secret_key = 'arogya_sathi_sih_2025_secret_key'
 app.permanent_session_lifetime = timedelta(hours=1)
 
-# --- CONFIGURATION FOR OPENROUTER ---
-# The new API key has been pasted directly here.
-OPENROUTER_API_KEY = "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"
+# --- CONFIGURATION FOR GOOGLE GEMINI ---
+GOOGLE_API_KEY = "AIzaSyDzoe-fF6ji0005fYw3mmzkAVCa147SbuQ"
+genai.configure(api_key=GOOGLE_API_KEY)
 
 # =================================================================
 # DATABASE SETUP
@@ -34,15 +33,24 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Corrected this line
 with app.app_context():
     init_db()
 
 # =================================================================
-# AI RESPONSE FUNCTION (Final working version)
+# AI RESPONSE FUNCTION (Using Google Gemini)
 # =================================================================
 def get_generative_response(user_message):
-    system_prompt = f"""You are "Arogya Sathi," an AI Health Assistant for the Smart India Hackathon.
+    # --- FIXED: Load the model here, only when needed ---
+    try:
+        # This now happens only when a message is sent.
+        generative_model = genai.GenerativeModel(model_name="gemini-pro")
+    except Exception as e:
+        print(f"❌ Could not load AI model: {e}")
+        return "मुझे क्षमा करें, AI मॉडल लोड नहीं हो सका। कृपया अपनी API कुंजी और प्रोजेक्ट सेटअप की जाँच करें।"
+    # --- END FIX ---
+
+    # The system prompt is combined with the user message for Gemini.
+    full_prompt = f"""You are "Arogya Sathi," an AI Health Assistant for the Smart India Hackathon.
 Your mission is to educate rural and semi-urban populations in India about preventive healthcare. 
 You must always be safe, simple, and concise. Your knowledge is integrated with government health databases 
 and regional outbreak information.
@@ -65,42 +73,19 @@ and regional outbreak information.
 **Critical Safety Rules:**
 - NEVER give a confirmed diagnosis.  
 - NEVER prescribe antibiotics or risky medicines.  
-- ALWAYS advise consulting a qualified doctor for serious or persistent problems."""
+- ALWAYS advise consulting a qualified doctor for serious or persistent problems.
+
+**User's Question:** "{user_message}"
+
+**Your concise, safe, and helpful answer (in the user's language):**
+"""
 
     try:
-        headers = {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json",
-            # This URL is for the live Render deployment
-            "HTTP-Referer": "https://health-chatbot-project-33ia.onrender.com", 
-            "X-Title": "Arogya Sathi"
-        }
-
-        data = {
-            # Using the Google Gemini Flash model as requested
-            "model": "google/gemini-2.0-flash-exp:free",
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message}
-            ]
-        }
-
-        response = requests.post("https://openrouter.ai/api/v1/chat/completions",
-                                 headers=headers, data=json.dumps(data))
-
-        if response.status_code == 200:
-            result = response.json()
-            if "choices" in result and len(result["choices"]) > 0:
-                return result["choices"][0]["message"]["content"].strip()
-            else:
-                return "मुझे क्षमा करें, AI कोई जवाब नहीं दे सका।"
-        else:
-            print(f"❌ API call failed with status code {response.status_code}: {response.text}")
-            return "मुझे क्षमा करें, अभी AI जवाब देने में असमर्थ है।"
-
+        response = generative_model.generate_content(full_prompt)
+        return response.text.strip()
     except Exception as e:
-        print(f"❌ An exception occurred: {e}")
-        return "मुझे क्षमा करें, अभी उत्तर देने में कोई समस्या आ रही है। कृपया बाद में प्रयास करें।"
+        print(f"❌ Error with Generative AI: {e}")
+        return "मुझे क्षमा करें, अभी AI जवाब देने में असमर्थ है।"
 
 # =================================================================
 # CHAT ROUTES
@@ -123,7 +108,7 @@ def chat():
     return render_template("index.html", chat_history=session['chat_history'])
 
 @app.route("/clear")
-def clear_chat():
+def clear__chat():
     session.pop('chat_history', None)
     return redirect(url_for('chat'))
 
