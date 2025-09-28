@@ -1,22 +1,20 @@
-# app.py (FINAL VERSION with Private Sessions + SIH Prompt)
+# app.py (Final Version — Corrected for OpenRouter API)
 
 import sqlite3
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request, session, redirect, url_for
 import os
-import google.generativeai as genai
+import requests # Using requests to send custom headers
+import json     # To format the data for the request
 from datetime import timedelta
 
 app = Flask(__name__)
 
 # --- SECRET KEY FOR SESSIONS ---
-app.secret_key = 'your_very_secret_key_here'   # <-- REQUIRED for private sessions
-app.permanent_session_lifetime = timedelta(hours=1)  # Store history for 1 hour
-# --- END NEW PART ---
+app.secret_key = 'arogya_sathi_sih_2025_secret_key'
+app.permanent_session_lifetime = timedelta(hours=1)
 
-# --- CONFIGURATION ---
-GOOGLE_API_KEY = "AIzaSyCIRszDPqKAAT1bNO6RZhNcMDcynnS2BIw"  # <-- keep only your real key
-genai.configure(api_key=GOOGLE_API_KEY)
-# --- END CONFIGURATION ---
+# --- CONFIGURATION FOR OPENROUTER ---
+OPENROUTER_API_KEY = "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"
 
 # =================================================================
 # DATABASE SETUP
@@ -32,25 +30,6 @@ def init_db():
             answer TEXT NOT NULL
         )
     """)
-    cursor.execute("SELECT COUNT(*) FROM faqs")
-    count = cursor.fetchone()[0]
-    if count == 0:
-        sample_faqs = [
-            ("dengue_symptoms", "What are the symptoms of dengue?",
-             "Common symptoms include high fever, headache, pain behind the eyes, and joint and muscle pain."),
-            ("malaria_prevention", "How can I prevent malaria?",
-             "Prevent malaria by using mosquito nets, applying insect repellent, and removing stagnant water around your home."),
-            ("newborn_vaccination", "What is the vaccination schedule for a newborn?",
-             "A newborn should get the BCG, Oral Polio Vaccine (OPV 0), and Hepatitis B (Birth Dose) vaccines."),
-            ("covid_symptoms", "What are the symptoms of covid?",
-             "Common symptoms are fever, cough, tiredness, and loss of taste or smell. Seek medical help for severe symptoms."),
-            ("common_cold_treatment", "How to treat a common cold?",
-             "For a common cold, general advice includes rest, staying hydrated, and using over-the-counter remedies for symptoms. This is not a substitute for medical advice.")
-        ]
-        cursor.executemany(
-            "INSERT INTO faqs (intent, question, answer) VALUES (?, ?, ?)",
-            sample_faqs
-        )
     conn.commit()
     conn.close()
 
@@ -58,22 +37,10 @@ with app.app_context():
     init_db()
 
 # =================================================================
-# LOAD MODEL
+# AI RESPONSE FUNCTION (Final working version)
 # =================================================================
-print("Initializing AI model...")
-generative_model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
-print("AI model loaded.")
-
-
-def get_db_connection():
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
-    return conn
-
-# --- SIH FINAL PROMPT (unchanged) ---
 def get_generative_response(user_message):
-    try:
-        prompt = f"""You are "Arogya Sathi," an AI Health Assistant for the Smart India Hackathon.
+    system_prompt = f"""You are "Arogya Sathi," an AI Health Assistant for the Smart India Hackathon.
 Your mission is to educate rural and semi-urban populations in India about preventive healthcare. 
 You must always be safe, simple, and concise. Your knowledge is integrated with government health databases 
 and regional outbreak information.
@@ -96,19 +63,45 @@ and regional outbreak information.
 **Critical Safety Rules:**
 - NEVER give a confirmed diagnosis.  
 - NEVER prescribe antibiotics or risky medicines.  
-- ALWAYS advise consulting a qualified doctor for serious or persistent problems.  
+- ALWAYS advise consulting a qualified doctor for serious or persistent problems."""
 
-**User's Question:** "{user_message}"
+    try:
+        headers = {
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost:5000", # Can be your actual site later
+            "X-Title": "Arogya Sathi"
+        }
 
-**Your concise, safe, and helpful answer (in the user's language):**
-"""
-        response = generative_model.generate_content(prompt)
-        return response.text.strip()
+        data = {
+            # UPDATED: Using the correct Google Gemini Flash model name for OpenRouter
+            "model": "google/gemini-2.0-flash-exp:free",
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message}
+            ]
+        }
+
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions",
+                                 headers=headers, data=json.dumps(data))
+
+        if response.status_code == 200:
+            result = response.json()
+            if "choices" in result and len(result["choices"]) > 0:
+                return result["choices"][0]["message"]["content"].strip()
+            else:
+                return "मुझे क्षमा करें, AI कोई जवाब नहीं दे सका।"
+        else:
+            print(f"❌ API call failed with status code {response.status_code}: {response.text}")
+            return "मुझे क्षमा करें, अभी AI जवाब देने में असमर्थ है।"
+
     except Exception as e:
-        print(f"Error with Generative AI: {e}")
-        return "I'm sorry, I’m having trouble answering that right now. Please try again."
+        print(f"❌ An exception occurred: {e}")
+        return "मुझे क्षमा करें, अभी उत्तर देने में कोई समस्या आ रही है। कृपया बाद में प्रयास करें।"
 
-# --- SESSION-BASED CHAT ---
+# =================================================================
+# CHAT ROUTES
+# =================================================================
 @app.route("/", methods=['GET', 'POST'])
 def chat():
     session.permanent = True
@@ -126,6 +119,14 @@ def chat():
 
     return render_template("index.html", chat_history=session['chat_history'])
 
+@app.route("/clear")
+def clear_chat():
+    session.pop('chat_history', None)
+    return redirect(url_for('chat'))
 
+# =================================================================
+# RUN APP
+# =================================================================
 if __name__ == '__main__':
     app.run(debug=True)
+

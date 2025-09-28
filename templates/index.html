@@ -1,46 +1,294 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Health Chatbot</title>
+    <title>आरोग्य साथी - स्वास्थ्य सहायक</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .chat-container { width: 450px; height: 700px; border: 1px solid #ddd; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; background-color: #fff; }
-        .chat-header { background-color: #007bff; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; }
-        .chat-history { flex: 1; padding: 20px; overflow-y: auto; }
-        .message { margin-bottom: 20px; display: flex; flex-direction: column; }
-        .message.user { align-items: flex-end; }
-        .message.bot { align-items: flex-start; }
-        .message .bubble { padding: 12px 18px; border-radius: 20px; max-width: 80%; line-height: 1.5; }
-        .message.user .bubble { background-color: #007bff; color: white; }
-        .message.bot .bubble { background-color: #e9e9eb; color: black; }
-        .chat-input { display: flex; padding: 15px; background-color: #f0f2f5; border-top: 1px solid #ddd; }
-        .chat-input input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 20px; font-size: 16px; }
-        .chat-input button { padding: 12px 20px; border: none; background-color: #007bff; color: white; border-radius: 20px; margin-left: 10px; cursor: pointer; font-size: 16px; }
+        :root {
+            --bg-color: #FDFBF6;
+            --container-bg: #FFFFFF;
+            --header-bg: #4A7C59; /* Earthy Green */
+            --bot-msg-bg: #F0F0F0;
+            --user-msg-bg: #D97746; /* Terracotta Orange */
+            --text-dark: #3a3a3a;
+            --text-light: #FFFFFF;
+            --border-color: #EAEAEA;
+            --font-family: 'Noto Sans Devanagari', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 800px;
+            height: 95vh;
+            display: flex;
+            flex-direction: column;
+            background: var(--container-bg);
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .chat-header {
+            background: var(--header-bg);
+            color: var(--text-light);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .header-title { display: flex; align-items: center; gap: 12px; }
+        .header-title .logo { font-size: 1.5rem; }
+        
+        .title-group h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            line-height: 1.2;
+            margin: 0;
+        }
+        .title-group p.tagline {
+            font-size: 0.85rem;
+            font-weight: 400;
+            opacity: 0.85;
+            margin: 0;
+            line-height: 1.2;
+        }
+        
+        .new-chat-link {
+            color: var(--text-light);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.5);
+            transition: background-color 0.2s;
+        }
+        .new-chat-link:hover { background-color: rgba(255,255,255,0.1); }
+
+        .chat-window {
+            flex-grow: 1;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background-color: #FDFDFD;
+            background-image: url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23e0e0e0' fill-opacity='0.1' fill-rule='evenodd'%3E%3Cpath d='M5 0h1L0 6V5zM6 5v1H5z'/%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        /* Welcome Screen */
+        .welcome-screen {
+            text-align: center;
+            padding: 20px 10px;
+            animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .welcome-screen .logo { font-size: 3rem; color: var(--header-bg); }
+        .welcome-screen h2 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+        .welcome-screen p {
+            font-size: 1.1rem;
+            color: #5a5a5a;
+            margin-top: 0.5rem;
+            line-height: 1.7;
+        }
+        .example-prompts {
+            margin-top: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+        .prompt-btn {
+            background: #FFFFFF;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-family: var(--font-family);
+            font-size: 1.05rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            max-width: 400px; /* Increased max-width for longer prompts */
+        }
+        .prompt-btn:hover {
+            border-color: var(--user-msg-bg);
+            color: var(--user-msg-bg);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 20px;
+            line-height: 1.7;
+            font-size: 1.1rem;
+        }
+
+        .bot-message {
+            background-color: var(--bot-msg-bg);
+            color: var(--text-dark);
+            align-self: flex-start;
+            border-top-left-radius: 5px;
+        }
+
+        .user-message {
+            background-color: var(--user-msg-bg);
+            color: var(--text-light);
+            align-self: flex-end;
+            border-top-right-radius: 5px;
+        }
+
+        .chat-input-area {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            background-color: #F8F5F1;
+        }
+
+        .chat-form {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-form input[type="text"] {
+            flex-grow: 1;
+            padding: 14px 20px;
+            border: 1px solid var(--border-color);
+            background-color: #FFFFFF;
+            border-radius: 28px;
+            font-size: 1.1rem;
+            font-family: var(--font-family);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .chat-form input[type="text"]:focus {
+            border-color: var(--user-msg-bg);
+        }
+
+        .chat-form button {
+            background-color: var(--header-bg);
+            border: none;
+            color: white;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            cursor: pointer;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        .chat-form button:hover {
+            background-color: #3b6348;
+            transform: scale(1.05);
+        }
+        .chat-form button svg { width: 24px; height: 24px; display: block; }
+        
+        @media (max-width: 600px) {
+            .chat-container { height: 100vh; margin: 0; border-radius: 0; }
+            .title-group h1 { font-size: 1.25rem; }
+        }
+
     </style>
 </head>
 <body>
+
     <div class="chat-container">
-        <div class="chat-header">Arogya Sathi</div>
-        <div class="chat-history" id="chat-history">
-            <div class="message bot">
-                <span class="bubble">नमस्ते! मैं आरोग्य साथी हूँ। आपके स्वास्थ्य की मदद के लिए यहाँ हूँ। आप क्या जानना चाहते हैं?</span>
+        <header class="chat-header">
+            <div class="header-title">
+                <span class="logo">🌿</span>
+                <div class="title-group">
+                    <h1>आरोग्य साथी</h1>
+                    <p class="tagline">आपका स्वास्थ्य, आपकी भाषा</p>
+                </div>
             </div>
+            <a href="/clear" class="new-chat-link">नई चैट</a>
+        </header>
+
+        <div class="chat-window" id="chat-window">
+            
+            {% if not chat_history %}
+            <!-- MODIFIED: Swachh Bharat Welcome Screen -->
+            <div class="welcome-screen">
+                <div class="logo">🧹</div>
+                <h2>स्वच्छ भारत, स्वस्थ भारत</h2>
+                <p>साफ-सफाई हमें बीमारियों से बचाती है। आइए, अपने आस-पास स्वच्छता बनाएँ और स्वस्थ रहें।</p>
+                <div class="example-prompts">
+                    <button class="prompt-btn" data-prompt="साफ-सफाई से कौन सी बीमारियाँ दूर रहती हैं?">साफ-सफाई से कौन सी बीमारियाँ दूर रहती हैं?</button>
+                    <button class="prompt-btn" data-prompt="हाथ धोने का सही तरीका क्या है?">हाथ धोने का सही तरीका क्या है?</button>
+                    <button class="prompt-btn" data-prompt="घर को कीटाणुओं से मुक्त कैसे रखें?">घर को कीटाणुओं से मुक्त कैसे रखें?</button>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Chat messages -->
             {% for entry in chat_history %}
-            <div class="message {{ 'user' if entry.sender == 'You' else 'bot' }}">
-                <span class="bubble">{{ entry.message | safe }}</span>
-            </div>
+                {% if entry.sender == 'You' %}
+                    <div class="message user-message">
+                        {{ entry.message }}
+                    </div>
+                {% else %}
+                    <div class="message bot-message">
+                        {{ entry.message | safe }}
+                    </div>
+                {% endif %}
             {% endfor %}
         </div>
-        <form class="chat-input" method="post">
-            <input type="text" name="message" placeholder="Ask a health question..." required autocomplete="off">
-            <button type="submit">Send</button>
-        </form>
+
+        <div class="chat-input-area">
+            <form id="chat-form" method="post" class="chat-form" autocomplete="off">
+                <input id="message-input" type="text" name="message" placeholder="अपना सवाल यहाँ लिखें..." required>
+                <button type="submit" aria-label="भेजें">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z"/></svg>
+                </button>
+            </form>
+        </div>
     </div>
+
     <script>
-        const chatHistory = document.getElementById('chat-history');
-        chatHistory.scrollTop = chatHistory.scrollHeight;
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatWindow = document.getElementById('chat-window');
+            const messageInput = document.getElementById('message-input');
+            
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+
+            const promptButtons = document.querySelectorAll('.prompt-btn');
+            promptButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    messageInput.value = button.getAttribute('data-prompt');
+                    messageInput.focus();
+                });
+            });
+        });
     </script>
+
 </body>
 </html>
+
